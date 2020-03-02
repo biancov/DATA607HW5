@@ -1,0 +1,81 @@
+---
+title: "DATA607 HW5"
+author: "Vincent Bianco"
+date: "3/1/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Introduction: The purpose of this assignment is to use tidy, transform, and analyze a given table of flights from two different airlines to 5 different cities. This data shows the amount of flights which arrive on time or delayed to a given destination.We will use tidyr to reshape the data into an easier format for analysis, then we will use ggplot to create an informative visualization to see which airline is performing better.
+
+Loading up necessary libraries.
+```{R}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+Reading in the CSV file with destination and flight times data. 
+```{r}
+destinationfile <- read.csv("https://raw.githubusercontent.com/biancov/DATA607HW5/master/destinations.csv", header = TRUE, sep=",", stringsAsFactors = FALSE)
+destinationfile
+```
+Filling in missing row and column names.
+```{r}
+names(destinationfile)[1] = "Airline"
+names(destinationfile)[2] = "Arrival Status"
+destinationfile$Airline[2] <- destinationfile$Airline[1]
+destinationfile$Airline[5] <- destinationfile$Airline[4]
+destinationfile
+```
+
+Lets make the Arrival Statuses (On time and delayed) as columns, and the Airline + Destination as part of each row entry.
+
+```{r}
+destinationfile <- drop_na(destinationfile) 
+
+destinationfilenew <- destinationfile %>% 
+  gather("Destinations","Flights",3:7) %>% 
+  spread("Arrival Status","Flights")
+destinationfilenew
+```
+
+Lets create a "Total" and Delay Rate" column, showing the total number of flights and the proportion of those flights which are delayed for each airline at each destination.
+
+```{R}
+destinationfilefinal <- mutate(destinationfilenew,
+      Total = delayed + as.numeric(destinationfilenew$'on time'),
+      Delay_Rate = 100*delayed/Total)
+destinationfilefinal
+```
+
+Now we can summarize this data to see which airline is having the most delays and at which cities are most of the delays occuring across all airlines.
+
+```{r}
+destinationfilefinal %>% 
+  group_by(Airline) %>% 
+  summarize(mean(Delay_Rate))
+
+```
+
+```{R}
+destinationfilefinal %>% group_by(Destinations) %>% summarize(mean(Delay_Rate))
+
+```
+
+For both airlines, we can use a bar chart to compare the difference in delay rates for each destination.
+
+```{r}
+ggplot(destinationfilefinal, aes(x=Destinations,y=Delay_Rate)) + 
+geom_bar(aes(fill=Airline), stat = "identity",position=position_dodge()) + 
+ylab("% of Flights Delayed") + 
+geom_text(aes(label=round(Delay_Rate,1)), color = "black",position = position_dodge(0.9))
+
+```
+
+Here we can see that across all the destinations, AMWEST is experiencing a significantly higher percentage of delays. 
